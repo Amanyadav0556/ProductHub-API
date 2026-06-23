@@ -1,0 +1,31 @@
+// Prisma Schema — defines DB structure + indexes
+// Docs: https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Product {
+  id         Int      @id @default(autoincrement())
+  name       String
+  category   String
+  price      Decimal  @db.Decimal(10, 2)
+
+  // NOTE: We do NOT use @updatedAt decorator here so we can seed custom timestamps.
+  // In production, you would add a DB trigger or handle this in the application layer.
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  // Index 1: For general queries sorted by updated_at DESC, id DESC (no category filter)
+  @@index([updated_at(sort: Desc), id(sort: Desc)])
+
+  // Index 2: For category-filtered queries (composite index for max performance)
+  // PostgreSQL will use this for: WHERE category = ? ORDER BY updated_at DESC, id DESC
+  @@index([category, updated_at(sort: Desc), id(sort: Desc)])
+}

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProductHub — Cursor-Paginated Product Browser</title>
+  <meta name="description" content="Browse 200,000 products with blazing-fast cursor pagination, category filters, and real-time load more." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- React + Babel (CDN — no build step required) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    /* ── Reset & Tokens ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0a0a0f;
+      --surface:     #13131a;
+      --surface2:    #1c1c28;
+      --border:      #2a2a3a;
+      --accent:      #7c6aff;
+      --accent-glow: #7c6aff33;
+      --accent2:     #ff6ab0;
+      --text:        #e8e8f0;
+      --text-muted:  #7878a0;
+      --success:     #4ade80;
+      --radius:      14px;
+      --shadow:      0 4px 24px rgba(0,0,0,0.4);
+      --transition:  all 0.22s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(10,10,15,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+    }
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .logo-icon {
+      width: 34px; height: 34px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+    }
+    .header-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s ease infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.85); }
+    }
+
+    /* ── Main Layout ────────────────────────────────────────────── */
+    .main { max-width: 1200px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+
+    /* ── Hero ───────────────────────────────────────────────────── */
+    .hero { margin-bottom: 2.5rem; }
+    .hero h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      background: linear-gradient(135deg, #fff 40%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+    .hero p { color: var(--text-muted); font-size: 1rem; }
+    .hero-stats {
+      display: flex;
+      gap: 2rem;
+      margin-top: 1.2rem;
+    }
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .stat-label { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* ── Filters ────────────────────────────────────────────────── */
+    .filters-section { margin-bottom: 2rem; }
+    .filters-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .filter-btn {
+      padding: 7px 16px;
+      border-radius: 40px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+    .filter-btn:hover {
+      border-color: var(--accent);
+      color: var(--text);
+      background: var(--accent-glow);
+    }
+    .filter-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    /* ── Grid ───────────────────────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+
+    /* ── Product Card ───────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+      transition: var(--transition);
+      cursor: default;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--accent-glow) 0%, transparent 60%);
+      opacity: 0;
+      transition: var(--transition);
+    }
+    .card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+      box-shadow: var(--shadow), 0 0 24px var(--accent-glow);
+    }
+    .card:hover::before { opacity: 1; }
+
+    .card-cat {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.9rem;
+      background: var(--accent-glow);
+      color: var(--accent);
+      border: 1px solid var(--accent)44;
+    }
+    .card-name {
+      font-size: 0.98rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1.1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    .card-price {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--success);
+    }
+    .card-id {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+    .card-date {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.3rem;
+    }
+
+    /* ── Skeleton Loading ───────────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 8px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .skeleton-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+    }
+    .skeleton-line { height: 14px; margin-bottom: 10px; }
+    .skeleton-line.short { width: 40%; }
+    .skeleton-line.medium { width: 70%; }
+    .skeleton-line.full { width: 100%; }
+    .skeleton-price { height: 22px; width: 30%; margin-top: 16px; }
+
+    /* ── Load More ──────────────────────────────────────────────── */
+    .load-more-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 3rem;
+    }
+    .load-more-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 36px;
+      border-radius: 40px;
+      border: 1px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      letter-spacing: 0.02em;
+    }
+    .load-more-btn:hover:not(:disabled) {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 28px var(--accent-glow);
+      transform: translateY(-2px);
+    }
+    .load-more-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .page-info { font-size: 0.82rem; color: var(--text-muted); }
+
+    /* ── Empty & Error States ───────────────────────────────────── */
+    .state-box {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 4rem 2rem;
+    }
+    .state-box .icon { font-size: 3rem; margin-bottom: 1rem; }
+    .state-box h3 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+    .state-box p { color: var(--text-muted); font-size: 0.9rem; }
+    .retry-btn {
+      margin-top: 1.2rem;
+      padding: 9px 24px;
+      border-radius: 40px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .retry-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── End of Results ─────────────────────────────────────────── */
+    .end-line {
+      text-align: center;
+      margin-top: 3rem;
+      padding: 1.5rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.82rem;
+    }
+    .end-line strong { color: var(--accent); }
+
+    /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .main { padding: 1.5rem 1rem 3rem; }
+      .hero-stats { gap: 1.2rem; }
+      .header { padding: 0 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script type="text/babel">
+  const { useState, useEffect, useCallback, useRef } = React;
+
+  // ── Config ─────────────────────────────────────────────────────────────────
+  const API_BASE = "http://localhost:3000";
+  const DEFAULT_LIMIT = 20;
+
+  const CATEGORIES = [
+    "All",
+    "Electronics",
+    "Clothing",
+    "Books",
+    "Home & Garden",
+    "Sports",
+    "Toys",
+    "Food & Beverage",
+    "Automotive",
+    "Health & Beauty",
+    "Office Supplies",
+  ];
+
+  // Category → colour mapping for pill tags
+  const CAT_COLORS = {
+    "Electronics":     "#7c6aff",
+    "Clothing":        "#ff6ab0",
+    "Books":           "#fbbf24",
+    "Home & Garden":   "#4ade80",
+    "Sports":          "#38bdf8",
+    "Toys":            "#f87171",
+    "Food & Beverage": "#fb923c",
+    "Automotive":      "#a78bfa",
+    "Health & Beauty": "#f472b6",
+    "Office Supplies": "#94a3b8",
+  };
+
+  // ── API Call ────────────────────────────────────────────────────────────────
+  async function fetchProducts({ category, cursor, limit = DEFAULT_LIMIT }) {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (category && category !== "All") params.set("category", category);
+    if (cursor) params.set("cursor", cursor);
+
+    const res = await fetch(`${API_BASE}/products?${params}`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? `HTTP ${res.status}`);
+    }
+    return res.json();
+  }
+
+  // ── Skeleton Card ────────────────────────────────────────────────────────────
+  function SkeletonCard() {
+    return (
+      <div className="skeleton-card">
+        <div className="skeleton skeleton-line short" />
+        <div className="skeleton skeleton-line medium" />
+        <div className="skeleton skeleton-line full" />
+        <div className="skeleton skeleton-price" />
+      </div>
+    );
+  }
+
+  // ── Product Card ─────────────────────────────────────────────────────────────
+  function ProductCard({ product }) {
+    const color = CAT_COLORS[product.category] ?? "#7c6aff";
+    const updated = new Date(product.updated_at).toLocaleDateString("en-US", {
+      month: "short", day: "numeric", year: "numeric"
+    });
+
+    return (
+      <div className="card">
+        <div className="card-cat" style={{ color, background: `${color}1a`, borderColor: `${color}44` }}>
+          ◈ {product.category}
+        </div>
+        <div className="card-name">{product.name}</div>
+        <div className="card-date">Updated {updated}</div>
+        <div className="card-footer">
+          <div className="card-price">${product.price}</div>
+          <div className="card-id">ID #{product.id}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Main App ─────────────────────────────────────────────────────────────────
+  function App() {
+    const [products, setProducts]       = useState([]);
+    const [cursor, setCursor]           = useState(null);
+    const [hasMore, setHasMore]         = useState(true);
+    const [loading, setLoading]         = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [error, setError]             = useState(null);
+    const [category, setCategory]       = useState("All");
+    const [totalLoaded, setTotalLoaded] = useState(0);
+
+    // ── Fetch first page ──────────────────────────────────────────────────────
+    const loadInitial = useCallback(async (cat) => {
+      setLoading(true);
+      setError(null);
+      setProducts([]);
+      setCursor(null);
+      setHasMore(true);
+      setTotalLoaded(0);
+
+      try {
+        const data = await fetchProducts({ category: cat });
+        setProducts(data.data);
+        setCursor(data.nextCursor);
+        setHasMore(data.hasMore);
+        setTotalLoaded(data.data.length);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
+    // ── Load more (append) ────────────────────────────────────────────────────
+    const loadMore = useCallback(async () => {
+      if (!cursor || loadingMore) return;
+      setLoadingMore(true);
+      setError(null);
+
+      try {
+        const data = await fetchProducts({ category, cursor });
+        setProducts(prev => [...prev, ...data.data]);
+        setCursor(data.nextCursor);
+        setHasMore(data.hasMore);
+        setTotalLoaded(prev => prev + data.data.length);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoadingMore(false);
+      }
+    }, [cursor, category, loadingMore]);
+
+    // ── Category change ───────────────────────────────────────────────────────
+    const handleCategory = (cat) => {
+      setCategory(cat);
+      loadInitial(cat);
+    };
+
+    // ── Initial load ──────────────────────────────────────────────────────────
+    useEffect(() => { loadInitial("All"); }, []);
+
+    return (
+      <>
+        {/* Header */}
+        <header className="header">
+          <div className="header-inner">
+            <div className="logo">
+              <div className="logo-icon">⚡</div>
+              ProductHub
+            </div>
+            <div className="header-meta">
+              <div className="status-dot" />
+              Cursor Pagination API
+            </div>
+          </div>
+        </header>
+
+        {/* Main */}
+        <main className="main">
+
+          {/* Hero */}
+          <section className="hero">
+            <h1>Browse 200,000 Products</h1>
+            <p>Lightning-fast cursor pagination — no skips, no duplicates, no OFFSET scans.</p>
+            <div className="hero-stats">
+              <div className="stat">
+                <div className="stat-value">200K</div>
+                <div className="stat-label">Total Products</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value" style={{ color: "var(--accent2)" }}>{totalLoaded.toLocaleString()}</div>
+                <div className="stat-label">Loaded</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value" style={{ color: "#4ade80" }}>O(log n)</div>
+                <div className="stat-label">Query Cost</div>
+              </div>
+            </div>
+          </section>
+
+          {/* Category Filters */}
+          <section className="filters-section">
+            <div className="filters-label">Filter by Category</div>
+            <div className="filters">
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  className={`filter-btn ${category === cat ? "active" : ""}`}
+                  onClick={() => handleCategory(cat)}
+                  disabled={loading}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Product Grid */}
+          <div className="grid">
+            {/* Loading skeletons */}
+            {loading && Array.from({ length: 12 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+
+            {/* Error state */}
+            {!loading && error && (
+              <div className="state-box">
+                <div className="icon">⚠️</div>
+                <h3>Failed to load products</h3>
+                <p>{error}</p>
+                <p style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
+                  Make sure the API server is running on {API_BASE}
+                </p>
+                <button className="retry-btn" onClick={() => loadInitial(category)}>
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!loading && !error && products.length === 0 && (
+              <div className="state-box">
+                <div className="icon">📦</div>
+                <h3>No products found</h3>
+                <p>Try a different category or reset your filters.</p>
+              </div>
+            )}
+
+            {/* Products */}
+            {!loading && products.map(p => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+
+            {/* Loading more skeletons */}
+            {loadingMore && Array.from({ length: DEFAULT_LIMIT }).map((_, i) => (
+              <SkeletonCard key={`more-${i}`} />
+            ))}
+          </div>
+
+          {/* Load More / End */}
+          {!loading && !error && products.length > 0 && (
+            <div className="load-more-wrap">
+              {hasMore ? (
+                <>
+                  <button
+                    className="load-more-btn"
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore
+                      ? <><div className="spinner" /> Loading…</>
+                      : <>↓ Load More Products</>
+                    }
+                  </button>
+                  <div className="page-info">
+                    Showing {products.length.toLocaleString()} products
+                    {category !== "All" ? ` in ${category}` : ""}
+                  </div>
+                </>
+              ) : (
+                <div className="end-line">
+                  <strong>All done!</strong> — Loaded all {products.length.toLocaleString()} products
+                  {category !== "All" ? ` in ${category}` : ""}.
+                </div>
+              )}
+            </div>
+          )}
+
+        </main>
+      </>
+    );
+  }
+
+  // ── Mount ─────────────────────────────────────────────────────────────────────
+  ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+
+</body>
+</html>
