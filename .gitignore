@@ -7,3 +7,10 @@ dist
 .vscode
 coverage
 *.log
+
+# Prisma engine binaries (platform-specific, must be generated on target OS)
+*.dll
+*.so
+*.dylib
+query-engine-*
+libquery_engine-*
