@@ -4,7 +4,7 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install && npm run build
     startCommand: node dist/server.js
     envVars:
       - key: NODE_ENV
@@ -12,8 +12,8 @@ services:
       - key: PORT
         value: 10000
       - key: DATABASE_URL
-        sync: false        # set manually in Render dashboard
+        sync: false
       - key: DIRECT_URL
-        sync: false        # set manually in Render dashboard
+        sync: false
       - key: CORS_ORIGINS
-        sync: false        # set manually in Render dashboard
+        sync: false

@@ -1,16 +1,38 @@
+# Dependencies — never commit these
+node_modules/
 node_modules
-dist
+
+# Build output — regenerated on every deploy
+dist/
+
+# Environment secrets — never commit
 .env
 .env.local
 .env.production
-.vercel
-.vscode
-coverage
-*.log
+.env.*.local
 
-# Prisma engine binaries (platform-specific, must be generated on target OS)
+# Prisma engine binaries — platform-specific, generated on target OS
+# These are inside node_modules (already ignored) but listed explicitly
+# in case someone tries to commit them directly
 *.dll
 *.so
 *.dylib
 query-engine-*
-libquery_engine-*
+libquery_engine-*
+
+# IDE / editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Deploy platforms
+.vercel/
+.render/
+
+# Coverage
+coverage/
