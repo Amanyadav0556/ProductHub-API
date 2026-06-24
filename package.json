@@ -4,7 +4,7 @@
   "description": "Product API with cursor-based pagination — Internship Assignment",
   "main": "dist/server.js",
   "scripts": {
-    "postinstall": "prisma generate",
+    "postinstall": "npx prisma generate",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
